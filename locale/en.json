@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Super UI",
+    "description": "Independent font-size scaling for the DSH interface outside the chat — sidebars, settings pages, plugin pages, menus and dialogs — while the conversation keeps its own font-size setting."
+  }
+}

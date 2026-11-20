@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Super UI",
+    "description": "Escala de fuente independiente para la interfaz de DSH fuera del chat (barras laterales, páginas de ajustes, plugins, menús y diálogos); el contenido de la conversación conserva su propio ajuste."
+  }
+}

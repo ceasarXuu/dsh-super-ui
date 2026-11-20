@@ -1,0 +1,17 @@
+# dsh-super-ui — bundle patch.
+#
+# The row id (`super-ui`) is also the settings namespace the browser half reads
+# through `ctx.configForms.get('super-ui')`, so renaming it would disconnect the
+# General settings row from its durable value.
+#
+# Manual profile override example:
+#
+#   - id: super-ui
+#     name: '@ceasarxuu/dsh-super-ui'
+#     config:
+#       fontScale: 120        # interface text 20% larger, chat untouched
+- insert:
+    - id: super-ui
+      name: '@ceasarxuu/dsh-super-ui'
+      config:
+        fontScale: 100
