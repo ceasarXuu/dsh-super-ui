@@ -2,7 +2,7 @@
   "name": "@ceasarxuu/dsh-super-ui",
   "version": "0.1.0",
   "type": "module",
-  "description": "Super UI: interface-wide tweaks for DeepSeek Harness. First feature: an independent font-size scale for the UI outside the chat surface (sidebars, settings pages, menus, dialogs) with a native General settings row.",
+  "description": "Super UI: interface-wide tweaks for DeepSeek Harness. First feature merges the shipped font-size row into two options — Chat font size (conversation content) and Interface font size (the rest of the interface, scaled live) — and keeps the shipped body/code/terminal font settings under More font settings.",
   "license": "MIT",
   "author": "ceasarXuu",
   "keywords": [
@@ -28,21 +28,22 @@
   "files": [
     "index.js",
     "client.js",
+    "src",
     "host/*.js",
     "cordis.patch.yml",
     "icon.svg",
     "locale/*.json",
     "README.md",
     "README.zh.md",
-    "LICENSE",
-    "dev"
+    "LICENSE"
   ],
   "scripts": {
-    "check": "node --check index.js && node --check host/config.js && node --check client.js",
-    "test": "node --test --test-force-exit test/*.test.mjs",
-    "verify": "npm run check && npm test",
-    "verify:browser": "node dev/verify-browser.mjs",
-    "verify:row": "node dev/verify-row-layout.mjs"
+    "build": "node dev/build-client.mjs",
+    "check": "node dev/build-client.mjs && node --check index.js && node --check host/config.js && node --check client.js",
+    "test": "node dev/build-client.mjs && node --test --test-force-exit test/*.test.mjs",
+    "verify:browser": "node dev/build-client.mjs && node dev/verify-browser.mjs",
+    "verify:row": "node dev/build-client.mjs && node dev/verify-row-layout.mjs",
+    "verify": "npm run check && npm test"
   },
   "dsh": {
     "bundle": {
@@ -55,6 +56,7 @@
   },
   "devDependencies": {
     "jsdom": "^26.1.0",
+    "puppeteer-core": "^23.11.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

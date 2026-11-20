@@ -1,11 +1,12 @@
 /**
- * Behaviour tests for the interface scale engine.
+ * Behaviour tests for the interface scale engine and the merged font row.
  *
  * jsdom stores CSS custom properties and `calc()` values but never computes
- * them, so these tests assert the rewritten declarations and the document
- * state (variable, region marker, subscription, disposal). The computed
- * browser semantics — including the conversation reset — are covered by
- * `dev/verify-browser.mjs`, which drives headless Chromium.
+ * them, so these tests assert the rewritten declarations, the document state
+ * (variable, region marker, subscription, disposal) and the row's registrations
+ * and write paths. Real computed browser semantics — including the conversation
+ * reset and the merged row geometry — are covered by `dev/verify-browser.mjs`
+ * and `dev/verify-row-layout.mjs`, which drive headless Chromium.
  */
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -32,19 +33,21 @@ const FIXTURE = `<!doctype html><html><head><meta charset="utf-8">
 </div>
 </body></html>`
 
-/** Minimal React surface: the row component is never rendered in these tests. */
+/** Minimal React surface: components are never rendered in these tests. */
 const REACT_STUB = {
   createElement: () => null,
   useState: () => [null, () => {}],
   useEffect: () => {},
+  useId: () => 'dsh-sui-region-test',
 }
 
 /**
  * Boot the real browser bundle inside jsdom with a fake client context.
  * @param t - node:test context; the jsdom window is closed when the test ends.
+ * @param options - `rejectPriority` makes the slot stub reject shadowing priority.
  * @returns handles for the document, the registered row and the fake context.
  */
-function boot(t) {
+function boot(t, options = {}) {
   const dom = new JSDOM(FIXTURE, { runScripts: 'dangerously', url: 'http://localhost/' })
   const { window } = dom
   t.after(() => { window.close() })
@@ -59,26 +62,72 @@ function boot(t) {
 
   const disposers = []
   const row = {}
+  const locales = {}
+
+  // Interface scale settings form.
   let durable = 100
   let revision = 0
-  const subscribers = new Set()
+  const scaleSubscribers = new Set()
   const form = {
     getSnapshot: () => ({ status: 'ready', value: { fontScale: durable }, base: {}, user: {}, revision, writable: true }),
-    subscribe: (listener) => { subscribers.add(listener); return () => { subscribers.delete(listener) } },
+    subscribe: (listener) => { scaleSubscribers.add(listener); return () => { scaleSubscribers.delete(listener) } },
     set: (field, value) => {
       assert.equal(field, 'fontScale')
       durable = value
       revision += 1
-      for (const listener of subscribers) listener()
+      for (const listener of scaleSubscribers) listener()
       return Promise.resolve(true)
     },
   }
-  const locales = {}
+
+  // Shipped typography service stub: the merged row writes through it.
+  let themeSnapshot = {
+    fontSizes: { text: 14, code: 11, terminal: 13 },
+    fontFamilies: { text: '', code: '', terminal: '' },
+    revision: 0,
+  }
+  const themeListeners = new Set()
+  const themeWrites = []
+  const theme = {
+    getTheme: () => themeSnapshot,
+    setFontSize(role, px) {
+      themeWrites.push(['size', role, px])
+      themeSnapshot = {
+        ...themeSnapshot,
+        fontSizes: { ...themeSnapshot.fontSizes, [role]: px },
+        revision: themeSnapshot.revision + 1,
+      }
+      for (const listener of themeListeners) listener()
+    },
+    setFontFamily(role, value) {
+      themeWrites.push(['family', role, value])
+      themeSnapshot = {
+        ...themeSnapshot,
+        fontFamilies: { ...themeSnapshot.fontFamilies, [role]: value },
+        revision: themeSnapshot.revision + 1,
+      }
+      for (const listener of themeListeners) listener()
+    },
+  }
+
   const ctx = {
     effect(fn) { const dispose = fn(); if (typeof dispose === 'function') disposers.push(dispose) },
+    on(event, listener) {
+      if (event !== 'theme/change') return () => {}
+      themeListeners.add(listener)
+      return () => { themeListeners.delete(listener) }
+    },
+    theme,
     slots: {
       inject(_name, register) { register() },
-      register(options, Component) { row.options = options; row.Component = Component; return () => {} },
+      register(registerOptions, Component) {
+        if (options.rejectPriority === true && registerOptions.priority !== undefined) {
+          throw new Error('priority is not supported by this slot core')
+        }
+        row.options = registerOptions
+        row.Component = Component
+        return () => {}
+      },
     },
     locale: { register(namespace, dictionaries) { locales[namespace] = dictionaries; return () => {} } },
     configForms: { get: (entryId) => { assert.equal(entryId, 'super-ui'); return form } },
@@ -88,7 +137,7 @@ function boot(t) {
     if (name === 'react') return REACT_STUB
     throw new Error(`unexpected module ${name}`)
   })
-  assert.deepEqual(Array.from(plugin.inject), ['slots', 'locale', 'configForms', 'remote'])
+  assert.deepEqual(Array.from(plugin.inject), ['slots', 'locale', 'configForms', 'remote', 'theme'])
   plugin.apply(ctx)
 
   return {
@@ -98,7 +147,13 @@ function boot(t) {
     locales,
     disposers,
     form,
-    setDurable: (next) => { durable = next; revision += 1; for (const listener of subscribers) listener() },
+    themeWrites,
+    setDurable: (next) => { durable = next; revision += 1; for (const listener of scaleSubscribers) listener() },
+    /** Simulate a typography change from another surface (e.g. the size shortcuts). */
+    emitTheme: (next) => {
+      themeSnapshot = { ...themeSnapshot, ...next, revision: themeSnapshot.revision + 1 }
+      for (const listener of themeListeners) listener()
+    },
   }
 }
 
@@ -123,8 +178,7 @@ const WRAPPED = 'calc(14px * var(--dsh-super-ui-scale, 1))'
 
 test('scales literal font sizes and paired line heights in place', (t) => {
   const { document } = boot(t)
-  const fontSize = declaration(document, '.chrome', 'font-size')
-  assert.deepEqual(fontSize, { value: WRAPPED, priority: '' })
+  assert.deepEqual(declaration(document, '.chrome', 'font-size'), { value: WRAPPED, priority: '' })
   assert.deepEqual(declaration(document, '.chrome', 'line-height'), { value: 'calc(22px * var(--dsh-super-ui-scale, 1))', priority: '' })
 })
 
@@ -219,18 +273,83 @@ test('disposal restores every declaration and removes the plugin stylesheet', (t
   assert.equal(document.querySelector('style[data-plugin-css="@ceasarxuu/dsh-super-ui/runtime"]'), null)
 })
 
-test('registers the General row and bilingual dictionaries', (t) => {
-  const { row, locales } = boot(t)
+test('the merged row shadows the shipped font-settings cell', (t) => {
+  const { row } = boot(t)
   assert.deepEqual(
-    { name: row.options.name, id: row.options.id, order: row.options.order, locale: row.options.locale },
-    { name: 'settings.general.item', id: 'super-ui-font-scale', order: 12, locale: 'superUi' },
+    {
+      name: row.options.name,
+      id: row.options.id,
+      order: row.options.order,
+      priority: row.options.priority,
+      locale: row.options.locale,
+    },
+    {
+      name: 'settings.general.item',
+      id: 'font-size',
+      order: 11,
+      priority: -1,
+      locale: 'superUi',
+    },
   )
   assert.equal(typeof row.Component, 'function')
+})
+
+test('a slot core without priority support gets a separate merged row', (t) => {
+  const { row } = boot(t, { rejectPriority: true })
+  assert.equal(row.options.id, 'super-ui-font-settings')
+  assert.equal(row.options.order, 11.5)
+  assert.equal(row.options.priority, undefined)
+})
+
+test('registers bilingual dictionaries with the merged row copy', (t) => {
+  const { locales } = boot(t)
   assert.deepEqual(Array.from(Object.keys(locales.superUi)).sort(), ['en', 'zh'])
-  for (const dictionary of Object.values(locales.superUi)) {
-    assert.deepEqual(Array.from(Object.keys(dictionary)).sort(), [
-      'fontScale.decrease', 'fontScale.description', 'fontScale.increase',
-      'fontScale.reset', 'fontScale.title',
-    ])
+  const zh = Array.from(Object.keys(locales.superUi.zh)).sort()
+  assert.deepEqual(Array.from(Object.keys(locales.superUi.en)).sort(), zh, 'both baselines carry the same keys')
+  for (const key of [
+    'row.chat.title', 'row.chat.description', 'row.ui.title', 'row.ui.description',
+    'row.more', 'row.reset', 'step.increase', 'step.decrease', 'fontSize.unit',
+    'fontSize.code.title', 'fontSize.terminal.title',
+    'fontFamily.text.title', 'fontFamily.code.title', 'fontFamily.terminal.title',
+    'fontFamily.placeholder',
+  ]) {
+    assert.ok(zh.includes(key), `zh dictionary carries ${key}`)
   }
+})
+
+test('the row steps the shipped chat size through the theme service', (t) => {
+  const { row, themeWrites } = boot(t)
+  const face = row.options.inject()
+  assert.deepEqual({ ...face.getTypography().sizes }, { text: 14, code: 11, terminal: 13 })
+
+  face.stepSize('text', 1)
+  assert.deepEqual(themeWrites.at(-1), ['size', 'text', 15])
+  assert.equal(face.getTypography().sizes.text, 15)
+
+  face.stepSize('code', -1)
+  assert.deepEqual(themeWrites.at(-1), ['size', 'code', 10])
+  assert.equal(face.getTypography().sizes.code, 10)
+})
+
+test('the row clamps steps at the shipped bounds', (t) => {
+  const { row, themeWrites } = boot(t)
+  const face = row.options.inject()
+  face.stepSize('text', 100)
+  assert.deepEqual(themeWrites.at(-1), ['size', 'text', 22])
+  face.stepSize('text', 1)
+  assert.equal(themeWrites.at(-1)[2], 22, 'no write past the maximum')
+  face.stepSize('text', -100)
+  assert.equal(themeWrites.at(-1)[2], 10, 'clamped at the minimum')
+})
+
+test('the row commits font lists through the theme service and follows external changes', (t) => {
+  const { row, themeWrites, emitTheme } = boot(t)
+  const face = row.options.inject()
+  face.setFamily('code', '"JetBrains Mono", monospace')
+  assert.deepEqual(themeWrites.at(-1), ['family', 'code', '"JetBrains Mono", monospace'])
+  assert.equal(face.getTypography().families.code, '"JetBrains Mono", monospace')
+
+  emitTheme({ fontSizes: { text: 18, code: 12, terminal: 15 } })
+  assert.equal(face.getTypography().sizes.text, 18)
+  assert.equal(face.getTypography().sizes.terminal, 15)
 })

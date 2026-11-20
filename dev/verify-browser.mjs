@@ -84,8 +84,27 @@ function buildPage() {
     subscribe: (listener) => { subscribers.add(listener); return () => subscribers.delete(listener) },
     set: (field, value) => { durable = value; revision += 1; for (const listener of subscribers) listener(); return Promise.resolve(true) },
   }
+  let themeSnapshot = {
+    fontSizes: { text: 14, code: 11, terminal: 13 },
+    fontFamilies: { text: '', code: '', terminal: '' },
+    revision: 0,
+  }
+  const themeListeners = new Set()
+  const theme = {
+    getTheme: () => themeSnapshot,
+    setFontSize(role, px) {
+      themeSnapshot = { ...themeSnapshot, fontSizes: { ...themeSnapshot.fontSizes, [role]: px }, revision: themeSnapshot.revision + 1 }
+      for (const listener of themeListeners) listener()
+    },
+    setFontFamily(role, value) {
+      themeSnapshot = { ...themeSnapshot, fontFamilies: { ...themeSnapshot.fontFamilies, [role]: value }, revision: themeSnapshot.revision + 1 }
+      for (const listener of themeListeners) listener()
+    },
+  }
   const ctx = {
     effect(fn) { const dispose = fn(); if (typeof dispose === 'function') window.__disposers.push(dispose) },
+    on(event, listener) { if (event !== 'theme/change') return () => {}; themeListeners.add(listener); return () => themeListeners.delete(listener) },
+    theme,
     slots: {
       inject(_name, register) { register() },
       register(options, Component) { window.__row = { options, Component }; return () => {} },
@@ -109,8 +128,9 @@ function buildPage() {
   plugin.apply(ctx)
   await tick()
 
-  check('row registered', window.__row && window.__row.options.name === 'settings.general.item'
-    && window.__row.options.id === 'super-ui-font-scale' && window.__row.options.order === 12, JSON.stringify(window.__row && window.__row.options))
+  check('merged row registered', window.__row && window.__row.options.name === 'settings.general.item'
+    && window.__row.options.id === 'font-size' && window.__row.options.order === 11
+    && window.__row.options.priority === -1, JSON.stringify(window.__row && window.__row.options))
 
   const face = window.__row.options.inject()
   check('initial variable', document.documentElement.style.getPropertyValue('--dsh-super-ui-scale') === '1', document.documentElement.style.getPropertyValue('--dsh-super-ui-scale'))
