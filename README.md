@@ -68,3 +68,15 @@ node dev/verify-browser.mjs   # renders client.js in headless Chrome and asserts
 ```
 
 The unit tests cover the CSSOM rewrites, persistence subscription and disposal in jsdom. `dev/verify-browser.mjs` covers what jsdom cannot compute (real `calc()`/custom-property resolution, the conversation reset, late stylesheets) and needs a Chromium-based browser (`CHROME=/path/to/chrome` to override the default lookup).
+
+The row layout has its own probe: it renders the real component with real React in
+headless Chromium at 80/100/120/150% and at 420/614/900 px panel widths, and fails
+when the stepper arrows cover the value or the row overflows its column.
+
+```sh
+npm run verify:row                                  # geometry assertions
+node dev/verify-row-layout.mjs --screenshot --scale=1.2 --width=614
+```
+
+React and React DOM are dev-only dependencies for that probe.
+

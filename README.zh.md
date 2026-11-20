@@ -68,3 +68,13 @@ node dev/verify-browser.mjs   # 在无头 Chrome 中渲染 client.js 并断言�
 ```
 
 单元测试覆盖 jsdom 中的 CSSOM 改写、持久化订阅与卸载恢复；`dev/verify-browser.mjs` 覆盖 jsdom 无法计算的部分（真实的 `calc()`/自定义属性解析、会话区重置、后插入样式表），需要 Chromium 内核浏览器（`CHROME=/path/to/chrome` 可覆盖默认查找路径）。
+
+设置行还有单独的真浏览器布局探针：用真实 React 在无头 Chromium 中渲染组件，覆盖 80/100/120/150% 与 420/614/900px 面板宽度，箭头遮住数值或行溢出时直接失败。
+
+```sh
+npm run verify:row                                  # 几何断言
+node dev/verify-row-layout.mjs --screenshot --scale=1.2 --width=614
+```
+
+React / React DOM 仅为该探针的开发期依赖。
+

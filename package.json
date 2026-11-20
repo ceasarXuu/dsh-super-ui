@@ -40,7 +40,9 @@
   "scripts": {
     "check": "node --check index.js && node --check host/config.js && node --check client.js",
     "test": "node --test --test-force-exit test/*.test.mjs",
-    "verify": "npm run check && npm test"
+    "verify": "npm run check && npm test",
+    "verify:browser": "node dev/verify-browser.mjs",
+    "verify:row": "node dev/verify-row-layout.mjs"
   },
   "dsh": {
     "bundle": {
@@ -52,7 +54,9 @@
     }
   },
   "devDependencies": {
-    "jsdom": "^26.1.0"
+    "jsdom": "^26.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "publishConfig": {
     "access": "public"
