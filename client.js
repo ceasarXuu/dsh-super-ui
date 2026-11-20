@@ -495,10 +495,12 @@ window.__ModuleLoader__.load({
      */
     function UiFontScaleRow(props) {
       const percent = useObservedValue(props.subscribe, props.getScale)
+      // A missing `t` seat would blank the row; the key fallback keeps it usable.
+      const t = typeof props.t === 'function' ? props.t : (key) => key
       return h('div', { className: 'dsh-sui-row' },
         h('div', { className: 'dsh-sui-text' },
-          h('div', { className: 'dsh-sui-title' }, props.t('fontScale.title')),
-          h('div', { className: 'dsh-sui-desc' }, props.t('fontScale.description'))),
+          h('div', { className: 'dsh-sui-title' }, t('fontScale.title')),
+          h('div', { className: 'dsh-sui-desc' }, t('fontScale.description'))),
         h('div', { className: 'dsh-sui-control' },
           h('div', { className: 'dsh-sui-stepper' },
             h('span', { className: 'dsh-sui-value' }, String(percent)),
@@ -506,14 +508,14 @@ window.__ModuleLoader__.load({
               h('button', {
                 type: 'button',
                 className: 'dsh-sui-arrow',
-                'aria-label': props.t('fontScale.increase'),
+                'aria-label': t('fontScale.increase'),
                 disabled: percent >= SCALE_MAX,
                 onClick: () => { props.setScale(percent + SCALE_STEP) },
               }, chevron(true)),
               h('button', {
                 type: 'button',
                 className: 'dsh-sui-arrow',
-                'aria-label': props.t('fontScale.decrease'),
+                'aria-label': t('fontScale.decrease'),
                 disabled: percent <= SCALE_MIN,
                 onClick: () => { props.setScale(percent - SCALE_STEP) },
               }, chevron(false)))),
@@ -524,7 +526,7 @@ window.__ModuleLoader__.load({
               type: 'button',
               className: 'dsh-sui-reset',
               onClick: () => { props.setScale(SCALE_DEFAULT) },
-            }, props.t('fontScale.reset'))))
+            }, t('fontScale.reset'))))
     }
 
     /* ------------------------------------------------------------------ */
@@ -545,7 +547,12 @@ window.__ModuleLoader__.load({
       let inflight = 0
 
       ctx.effect(() => {
-        engine.start()
+        try {
+          engine.start()
+        } catch (error) {
+          // The row must survive a degraded document (no stylesheets, detached head).
+          console.warn('[super-ui] interface scale engine failed to start:', error)
+        }
         return () => { engine.dispose() }
       }, 'super-ui: interface scale engine')
 
