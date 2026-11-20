@@ -41,13 +41,20 @@ jobs:
           test "$GITHUB_REF_TYPE" = tag
           test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
 
-      - name: Configure the one-time bootstrap token when present
+      # Trusted publishing authenticates through OIDC (`id-token: write`
+      # above), so no token is needed. Set the repository variable
+      # NPM_TOKEN_PUBLISH=true to fall back to the NPM_TOKEN secret instead
+      # (for example while a trusted publisher connection is unavailable).
+      - name: Configure the bootstrap token only when explicitly requested
+        if: vars.NPM_TOKEN_PUBLISH == 'true'
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if [ -n "$NPM_TOKEN" ]; then
-            npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "NPM_TOKEN_PUBLISH is set but the NPM_TOKEN secret is missing" >&2
+            exit 1
           fi
+          npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
 
       - name: Check whether this version is already published
         id: check

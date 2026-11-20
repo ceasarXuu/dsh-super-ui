@@ -88,7 +88,7 @@ The unit tests cover the CSSOM rewrites, the registration/shadowing decision, ty
 `@ceasarxuu/dsh-super-ui` is published by [`.github/workflows/publish.yml`](.github/workflows/publish.yml) on a GitHub release (or a manual workflow dispatch):
 
 1. It runs `npm run verify` (syntax check + jsdom tests) on Node 24.
-2. While the `NPM_TOKEN` repository secret exists, it authenticates with that one-time bootstrap token (90-day granular token, 2FA bypass) — this is how the first version was published before npm trusted publishing existed for the package.
-3. Once the package is configured on npm with a **trusted publisher** for this repository and workflow, `id-token: write` lets npm authenticate via OIDC and generate provenance; the `NPM_TOKEN` step then simply stops mattering (delete the secret once the tokenless path is verified).
+2. It authenticates through npm **trusted publishing** (OIDC via `id-token: write`): GitHub presents a short-lived identity token, npm checks the trusted-publisher connection configured for this repository and workflow, and no repository secret is needed. Provenance is generated for every release.
+   A 90-day granular token (2FA bypass) is kept in the `NPM_TOKEN` secret only as an explicit fallback: set the repository variable `NPM_TOKEN_PUBLISH=true` to use it instead. The first version (0.1.0) was bootstrapped with that token before the trusted-publisher connection existed.
 
 Release flow: bump `version` in `package.json`, commit, `git tag v<version>`, push the tag, then publish a GitHub Release for it. The workflow refuses to publish when the release tag and the package version disagree, and skips versions that already exist on the registry.

@@ -88,7 +88,7 @@ npm run verify:row              # 无头 Chromium：合并行几何、展开区�
 `@ceasarxuu/dsh-super-ui` 由 [`.github/workflows/publish.yml`](.github/workflows/publish.yml) 在 GitHub Release（或手动 workflow dispatch）时发布：
 
 1. 在 Node 24 上运行 `npm run verify`（语法检查 + jsdom 单测）；
-2. 仓库里存在 `NPM_TOKEN` secret 时，用这个一次性引导 token 认证（90 天 granular token、绕过 2FA）——首次发布时 npm 上还没有可信发布配置，就靠它；
-3. 在 npm 包设置里配好本仓库 + 本 workflow 的 **Trusted Publisher** 之后，`id-token: write` 让 npm 通过 OIDC 认证并自动生成 provenance，`NPM_TOKEN` 那一步就不再起作用（确认免 token 发布可用后即可删除该 secret）。
+2. 通过 npm **Trusted Publishing**（OIDC，`id-token: write`）认证：GitHub 出具短时身份令牌，npm 校验本仓库/本 workflow 的可信发布连接，**不需要仓库密钥**，每次发布自动生成 provenance。
+   仓库里保留的 90 天 granular token（绕过 2FA）仅作为显式回退：把仓库变量 `NPM_TOKEN_PUBLISH=true` 才会改用它。首个版本 0.1.0 就是在可信发布连接建立前用这个 token 引导发布的。
 
 发布流程：改 `package.json` 的 `version`，提交，`git tag v<version>`，推送 tag，然后为该 tag 建 GitHub Release。workflow 会校验 release tag 与包版本一致，并跳过 registry 上已存在的版本。
