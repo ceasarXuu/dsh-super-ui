@@ -5,7 +5,7 @@ A third-party plugin for DeepSeek Harness (DSH) that adds an **independent font-
 | | |
 |---|---|
 | Package | `@ceasarxuu/dsh-super-ui` |
-| Host requirement | DSH `>=0.2.2-rc.3 <0.3.0` (tested on Desktop 0.2.2-rc.3) |
+| Host requirement | DSH `>=0.2.1-rc.0 <0.3.0` (tested on Desktop 0.2.2-rc.3) |
 | UI location | **Settings → General → Interface font size** (row right after the shipped *Font size* row) |
 | Also configurable | `Plugins → Super UI → Config` or the profile patch (`fontScale`, 80–150) |
 | Dependencies | None at runtime; the browser half uses only the platform-provided `react` |

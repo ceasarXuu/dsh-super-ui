@@ -5,7 +5,7 @@ DeepSeek Harness（DSH）第三方插件：为**聊天界面以外的界面**提
 | | |
 |---|---|
 | 包名 | `@ceasarxuu/dsh-super-ui` |
-| 宿主要求 | DSH `>=0.2.2-rc.3 <0.3.0`（已在 Desktop 0.2.2-rc.3 验证） |
+| 宿主要求 | DSH `>=0.2.1-rc.0 <0.3.0`（已在 Desktop 0.2.2-rc.3 实测） |
 | 界面位置 | **设置 → 通用 → 界面字号**（紧跟官方「字号大小」行） |
 | 其他入口 | `插件 → Super UI → 配置`，或 profile patch 中的 `fontScale`（80–150） |
 | 运行时依赖 | 无；浏览器端只使用平台提供的 `react` |
