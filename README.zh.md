@@ -82,3 +82,13 @@ npm run verify:row              # 无头 Chromium：合并行几何、展开区�
 `client.js` 是生成产物：DSH 的客户端 loader 不给插件工厂任何模块导入能力，因此可读源码放在 `src/client/` 的片段里（常量、helpers、缩放引擎、字体模型、行组件、插件主体），由 `dev/build-client.mjs` 按文件名顺序拼进 module-loader 外壳。改 `src/client/*.js`，不要手改 `client.js`。
 
 单元测试覆盖 jsdom 中的 CSSOM 改写、注册/遮蔽决策、通过主题服务的字体写入与卸载恢复；两个浏览器探针都通过 `puppeteer-core` 驱动真实 Chromium（`CHROME=/path/to/chrome` 可覆盖默认查找路径）：引擎探针覆盖 jsdom 无法计算的部分，行探针用真实 React 渲染真实组件，箭头遮数值、行溢出或展开区丢失官方字体设置都会直接失败。
+
+## 发布
+
+`@ceasarxuu/dsh-super-ui` 由 [`.github/workflows/publish.yml`](.github/workflows/publish.yml) 在 GitHub Release（或手动 workflow dispatch）时发布：
+
+1. 在 Node 24 上运行 `npm run verify`（语法检查 + jsdom 单测）；
+2. 仓库里存在 `NPM_TOKEN` secret 时，用这个一次性引导 token 认证（90 天 granular token、绕过 2FA）——首次发布时 npm 上还没有可信发布配置，就靠它；
+3. 在 npm 包设置里配好本仓库 + 本 workflow 的 **Trusted Publisher** 之后，`id-token: write` 让 npm 通过 OIDC 认证并自动生成 provenance，`NPM_TOKEN` 那一步就不再起作用（确认免 token 发布可用后即可删除该 secret）。
+
+发布流程：改 `package.json` 的 `version`，提交，`git tag v<version>`，推送 tag，然后为该 tag 建 GitHub Release。workflow 会校验 release tag 与包版本一致，并跳过 registry 上已存在的版本。

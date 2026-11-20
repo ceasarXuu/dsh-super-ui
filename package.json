@@ -61,9 +61,18 @@
     "react-dom": "^18.3.1"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "^3.19.0"
+  },
+  "homepage": "https://github.com/ceasarXuu/dsh-super-ui#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ceasarXuu/dsh-super-ui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ceasarXuu/dsh-super-ui/issues"
   }
 }

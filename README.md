@@ -82,3 +82,13 @@ npm run verify:row              # headless Chromium: merged-row geometry, disclo
 `client.js` is generated: the DSH client loader gives a plugin factory no imports of its own, so the readable sources live as fragments under `src/client/` (constants, helpers, scale engine, typography model, row components, plugin body) and `dev/build-client.mjs` concatenates them into the module-loader envelope. Edit `src/client/*.js`, never `client.js`.
 
 The unit tests cover the CSSOM rewrites, the registration/shadowing decision, typography writes through the theme service and disposal in jsdom. Both browser probes drive real Chromium through `puppeteer-core` (`CHROME=/path/to/chrome` overrides the default lookup): the engine probe covers what jsdom cannot compute, the row probe renders the real component with real React and fails when a stepper arrow covers a value, a row overflows, or the disclosure loses the shipped font settings.
+
+## Publishing
+
+`@ceasarxuu/dsh-super-ui` is published by [`.github/workflows/publish.yml`](.github/workflows/publish.yml) on a GitHub release (or a manual workflow dispatch):
+
+1. It runs `npm run verify` (syntax check + jsdom tests) on Node 24.
+2. While the `NPM_TOKEN` repository secret exists, it authenticates with that one-time bootstrap token (90-day granular token, 2FA bypass) — this is how the first version was published before npm trusted publishing existed for the package.
+3. Once the package is configured on npm with a **trusted publisher** for this repository and workflow, `id-token: write` lets npm authenticate via OIDC and generate provenance; the `NPM_TOKEN` step then simply stops mattering (delete the secret once the tokenless path is verified).
+
+Release flow: bump `version` in `package.json`, commit, `git tag v<version>`, push the tag, then publish a GitHub Release for it. The workflow refuses to publish when the release tag and the package version disagree, and skips versions that already exist on the registry.
